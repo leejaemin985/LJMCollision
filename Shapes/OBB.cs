@@ -1,3 +1,5 @@
+using System;
+
 namespace LJMCollision
 {
     /// <summary>
@@ -54,6 +56,23 @@ namespace LJMCollision
                 + AxisX * localPoint.X
                 + AxisY * localPoint.Y
                 + AxisZ * localPoint.Z;
+        }
+
+        /// <summary>OBB의 8개 꼭짓점을 월드 좌표로 반환</summary>
+        public void GetVertices(Span<Vec3> verts)
+        {
+            Vec3 ax = AxisX * HalfSize.X;
+            Vec3 ay = AxisY * HalfSize.Y;
+            Vec3 az = AxisZ * HalfSize.Z;
+
+            verts[0] = Center + ax + ay + az;
+            verts[1] = Center + ax + ay - az;
+            verts[2] = Center + ax - ay + az;
+            verts[3] = Center + ax - ay - az;
+            verts[4] = Center - ax + ay + az;
+            verts[5] = Center - ax + ay - az;
+            verts[6] = Center - ax - ay + az;
+            verts[7] = Center - ax - ay - az;
         }
 
         /// <summary>OBB 표면에서 가장 가까운 점 (월드 좌표)</summary>

@@ -2,136 +2,16 @@ using System;
 
 namespace LJMCollision
 {
-    public static class CollisionDetection
+    /// <summary>
+    /// 충돌 판정 유틸리티.
+    /// 카테고리별 partial class로 분리:
+    ///   - CollisionDetection.Capsule.cs  (CapsuleVsOBB, CapsuleVsCapsule)
+    ///   - CollisionDetection.Ray.cs      (RayVsOBB, RayVsCapsule, RayVsSphere)
+    ///   - CollisionDetection.Sphere.cs   (SphereVsOBB, SphereVsCapsule)
+    ///   - CollisionDetection.OBB.cs      (OBBVsOBB)
+    /// </summary>
+    public static partial class CollisionDetection
     {
-        // ── Capsule vs OBB ──
-
-        /// <summary>캡슐과 OBB의 충돌 판정 + 밀어내기 정보 반환</summary>
-        public static CollisionResult CapsuleVsOBB(Capsule capsule, OBB box)
-        {
-            // 캡슐 선분에서 OBB에 가장 가까운 점을 구함
-            Vec3 segClosest = ClosestPointOnSegmentToOBB(capsule.Top, capsule.Bottom, box);
-            Vec3 boxClosest = box.ClosestPoint(segClosest);
-
-            Vec3 diff = segClosest - boxClosest;
-            float distSq = diff.SqrMagnitude;
-
-            if (distSq > capsule.Radius * capsule.Radius)
-                return CollisionResult.None;
-
-            float dist = MathF.Sqrt(distSq);
-            Vec3 normal;
-            float depth;
-
-            if (dist < MathUtils.Epsilon)
-            {
-                // 캡슐 선분이 OBB 내부에 있음 → 로컬 공간에서 가장 얕은 축으로 밀어냄
-                normal = ComputeOBBPenetrationNormal(segClosest, box, out float penDepth);
-                depth = penDepth + capsule.Radius;
-            }
-            else
-            {
-                normal = diff * (1f / dist);
-                depth = capsule.Radius - dist;
-            }
-
-            return new CollisionResult
-            {
-                Hit = true,
-                ContactPoint = boxClosest,
-                Normal = normal,
-                Depth = depth,
-            };
-        }
-
-        // ── Ray vs OBB ──
-
-        /// <summary>레이와 OBB의 교차 판정 (OBB 로컬 공간에서 Slab method)</summary>
-        public static RaycastResult RayVsOBB(Ray ray, OBB box, float maxDistance = float.MaxValue)
-        {
-            // 레이를 OBB 로컬 공간으로 변환
-            Vec3 localOrigin = box.WorldToLocal(ray.Origin);
-            Vec3 localDir = new Vec3(
-                Vec3.Dot(ray.Direction, box.AxisX),
-                Vec3.Dot(ray.Direction, box.AxisY),
-                Vec3.Dot(ray.Direction, box.AxisZ));
-
-            float tMin = 0f;
-            float tMax = maxDistance;
-
-            if (!SlabTest(localOrigin.X, localDir.X, -box.HalfSize.X, box.HalfSize.X, ref tMin, ref tMax))
-                return RaycastResult.None;
-            if (!SlabTest(localOrigin.Y, localDir.Y, -box.HalfSize.Y, box.HalfSize.Y, ref tMin, ref tMax))
-                return RaycastResult.None;
-            if (!SlabTest(localOrigin.Z, localDir.Z, -box.HalfSize.Z, box.HalfSize.Z, ref tMin, ref tMax))
-                return RaycastResult.None;
-
-            Vec3 point = ray.GetPoint(tMin);
-            Vec3 normal = ComputeOBBSurfaceNormal(point, box);
-
-            return new RaycastResult
-            {
-                Hit = true,
-                Distance = tMin,
-                Point = point,
-                Normal = normal,
-            };
-        }
-
-        // ── Ray vs Capsule ──
-
-        /// <summary>레이와 캡슐의 교차 판정 (플레이어 피격용)</summary>
-        public static RaycastResult RayVsCapsule(Ray ray, Capsule capsule)
-        {
-            Vec3 segDir = capsule.Top - capsule.Bottom;
-            Vec3 w0 = ray.Origin - capsule.Bottom;
-
-            float a = Vec3.Dot(ray.Direction, ray.Direction);
-            float b = Vec3.Dot(ray.Direction, segDir);
-            float c = Vec3.Dot(segDir, segDir);
-            float d = Vec3.Dot(ray.Direction, w0);
-            float e = Vec3.Dot(segDir, w0);
-
-            float denom = a * c - b * b;
-
-            float tRay, tSeg;
-            if (MathF.Abs(denom) < MathUtils.Epsilon)
-            {
-                tRay = 0f;
-                tSeg = c > MathUtils.Epsilon ? e / c : 0f;
-            }
-            else
-            {
-                tRay = (b * e - c * d) / denom;
-                tSeg = (a * e - b * d) / denom;
-            }
-
-            tRay = MathF.Max(0f, tRay);
-            tSeg = MathUtils.Clamp(tSeg, 0f, 1f);
-
-            Vec3 closestOnRay = ray.GetPoint(tRay);
-            Vec3 closestOnSeg = capsule.Bottom + segDir * tSeg;
-
-            float dist = Vec3.Distance(closestOnRay, closestOnSeg);
-            if (dist > capsule.Radius)
-                return RaycastResult.None;
-
-            Vec3 normal = (closestOnRay - closestOnSeg).Normalized;
-            Vec3 point = closestOnSeg + normal * capsule.Radius;
-
-            return new RaycastResult
-            {
-                Hit = true,
-                Distance = tRay,
-                Point = point,
-                Normal = normal,
-            };
-        }
-
-        // ══════════════════════════════════════
-        //  내부 유틸리티
-        // ══════════════════════════════════════
-
         /// <summary>선분(a→b) 위에서 OBB에 가장 가까운 점</summary>
         static Vec3 ClosestPointOnSegmentToOBB(Vec3 a, Vec3 b, OBB box)
         {
@@ -183,6 +63,106 @@ namespace LJMCollision
             if (absY > absZ)
                 return local.Y > 0 ? box.AxisY : -box.AxisY;
             return local.Z > 0 ? box.AxisZ : -box.AxisZ;
+        }
+
+        /// <summary>두 선분 사이의 최근접점 쌍을 구함</summary>
+        internal static void ClosestPointsSegmentSegment(
+            Vec3 p1, Vec3 q1, Vec3 p2, Vec3 q2,
+            out Vec3 closestA, out Vec3 closestB)
+        {
+            Vec3 d1 = q1 - p1;
+            Vec3 d2 = q2 - p2;
+            Vec3 r = p1 - p2;
+
+            float a = d1.SqrMagnitude;
+            float e = d2.SqrMagnitude;
+            float f = Vec3.Dot(d2, r);
+
+            float s, t;
+
+            if (a < MathUtils.Epsilon && e < MathUtils.Epsilon)
+            {
+                closestA = p1;
+                closestB = p2;
+                return;
+            }
+
+            if (a < MathUtils.Epsilon)
+            {
+                s = 0f;
+                t = MathUtils.Clamp(f / e, 0f, 1f);
+            }
+            else
+            {
+                float c = Vec3.Dot(d1, r);
+                if (e < MathUtils.Epsilon)
+                {
+                    t = 0f;
+                    s = MathUtils.Clamp(-c / a, 0f, 1f);
+                }
+                else
+                {
+                    float b = Vec3.Dot(d1, d2);
+                    float denom = a * e - b * b;
+
+                    if (MathF.Abs(denom) > MathUtils.Epsilon)
+                        s = MathUtils.Clamp((b * f - c * e) / denom, 0f, 1f);
+                    else
+                        s = 0f;
+
+                    t = (b * s + f) / e;
+
+                    if (t < 0f)
+                    {
+                        t = 0f;
+                        s = MathUtils.Clamp(-c / a, 0f, 1f);
+                    }
+                    else if (t > 1f)
+                    {
+                        t = 1f;
+                        s = MathUtils.Clamp((b - c) / a, 0f, 1f);
+                    }
+                }
+            }
+
+            closestA = p1 + d1 * s;
+            closestB = p2 + d2 * t;
+        }
+
+        /// <summary>OBB를 특정 축에 투영한 반길이</summary>
+        static float ProjectOBBOnAxis(OBB box, Vec3 axis)
+        {
+            return MathF.Abs(Vec3.Dot(axis, box.AxisX)) * box.HalfSize.X
+                 + MathF.Abs(Vec3.Dot(axis, box.AxisY)) * box.HalfSize.Y
+                 + MathF.Abs(Vec3.Dot(axis, box.AxisZ)) * box.HalfSize.Z;
+        }
+
+        /// <summary>SAT 축 하나에 대한 겹침 테스트</summary>
+        static bool TestSATAxis(Vec3 axis, OBB a, OBB b, Vec3 centerDiff,
+            ref float minDepth, ref Vec3 minAxis)
+        {
+            float projA = ProjectOBBOnAxis(a, axis);
+            float projB = ProjectOBBOnAxis(b, axis);
+            float dist = MathF.Abs(Vec3.Dot(centerDiff, axis));
+
+            float overlap = projA + projB - dist;
+            if (overlap < 0f) return false;
+
+            if (overlap < minDepth)
+            {
+                minDepth = overlap;
+                minAxis = axis;
+            }
+            return true;
+        }
+
+        /// <summary>점이 OBB 내부에 있는지 판별</summary>
+        static bool IsPointInsideOBB(Vec3 point, OBB box)
+        {
+            Vec3 local = box.WorldToLocal(point);
+            return MathF.Abs(local.X) <= box.HalfSize.X
+                && MathF.Abs(local.Y) <= box.HalfSize.Y
+                && MathF.Abs(local.Z) <= box.HalfSize.Z;
         }
 
         /// <summary>Slab method 축별 교차 테스트</summary>
