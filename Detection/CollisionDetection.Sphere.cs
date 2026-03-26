@@ -38,6 +38,29 @@ namespace LJMCollision
             };
         }
 
+        /// <summary>구체와 구체의 충돌 판정</summary>
+        public static CollisionResult SphereVsSphere(Sphere a, Sphere b)
+        {
+            Vec3 diff = a.Center - b.Center;
+            float distSq = diff.SqrMagnitude;
+            float sumR = a.Radius + b.Radius;
+
+            if (distSq >= sumR * sumR)
+                return CollisionResult.None;
+
+            float dist = MathF.Sqrt(distSq);
+            Vec3 normal = dist > MathUtils.Epsilon ? diff * (1f / dist) : Vec3.Up;
+            Vec3 contact = b.Center + normal * b.Radius;
+
+            return new CollisionResult
+            {
+                Hit = true,
+                ContactPoint = contact,
+                Normal = normal,
+                Depth = sumR - dist,
+            };
+        }
+
         /// <summary>구체와 캡슐의 충돌 판정 (투사체 vs 플레이어)</summary>
         public static CollisionResult SphereVsCapsule(Sphere sphere, Capsule capsule)
         {

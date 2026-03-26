@@ -66,7 +66,7 @@ namespace LJMCollision
         }
 
         /// <summary>두 선분 사이의 최근접점 쌍을 구함</summary>
-        internal static void ClosestPointsSegmentSegment(
+        public static void ClosestPointsSegmentSegment(
             Vec3 p1, Vec3 q1, Vec3 p2, Vec3 q2,
             out Vec3 closestA, out Vec3 closestB)
         {
