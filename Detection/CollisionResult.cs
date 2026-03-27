@@ -10,6 +10,14 @@ namespace LJMCollision
         public static CollisionResult None => new() { Hit = false };
     }
 
+    public struct MoveResult
+    {
+        public Vec3 Position;
+        public bool Grounded;
+        public Vec3 GroundNormal;
+        public bool HitCeiling;
+    }
+
     public struct RaycastResult
     {
         public bool Hit;

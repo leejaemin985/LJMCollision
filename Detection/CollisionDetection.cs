@@ -12,7 +12,7 @@ namespace LJMCollision
     /// </summary>
     public static partial class CollisionDetection
     {
-        /// <summary>선분(a→b) 위에서 OBB에 가장 가까운 점</summary>
+        /// <summary>선분(a→b) 위에서 OBB에 가장 가까운 점 (반복 수렴)</summary>
         static Vec3 ClosestPointOnSegmentToOBB(Vec3 a, Vec3 b, OBB box)
         {
             Vec3 dir = b - a;
@@ -20,10 +20,22 @@ namespace LJMCollision
             if (segLen < MathUtils.Epsilon) return a;
 
             Vec3 segNorm = dir * (1f / segLen);
+
+            // 1차: OBB 중심 기준으로 선분 최근접점
             float t = Vec3.Dot(box.Center - a, segNorm);
             t = MathUtils.Clamp(t, 0f, segLen);
+            Vec3 segClosest = a + segNorm * t;
 
-            return a + segNorm * t;
+            // 2~3차: OBB 표면 ↔ 선분 반복 수렴
+            for (int i = 0; i < 2; i++)
+            {
+                Vec3 boxClosest = box.ClosestPoint(segClosest);
+                t = Vec3.Dot(boxClosest - a, segNorm);
+                t = MathUtils.Clamp(t, 0f, segLen);
+                segClosest = a + segNorm * t;
+            }
+
+            return segClosest;
         }
 
         /// <summary>OBB 내부의 점에 대한 밀어내기 방향과 깊이 (로컬 공간 기반)</summary>
